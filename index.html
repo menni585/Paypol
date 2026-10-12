@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>PayPal - Mein Konto & Marktplatz</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #f4f6f9;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+    .paypal-header { background-color: #003087; }
+    .paypal-btn { background-color: #0070ba; }
+    .paypal-btn:active { background-color: #004d82; }
+    .card-shadow { box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05); }
+    button, input, select { min-height: 48px; }
+  </style>
+</head>
+<body class="text-gray-800 min-h-screen flex flex-col justify-between pb-16">
+
+  <!-- Benachrichtigungen / Toast Container -->
+  <div id="toast-container" class="fixed bottom-20 right-4 left-4 md:left-auto md:right-5 z-50 flex flex-col space-y-2 pointer-events-none"></div>
+
+  <!-- PayPal Navigation Header -->
+  <header class="paypal-header text-white shadow-md sticky top-0 z-40">
+    <div class="max-w-6xl mx-auto px-4 py-3.5 flex justify-between items-center">
+      <div class="flex items-center space-x-4">
+        <div class="flex items-center space-x-2 font-bold text-2xl italic tracking-wide">
+          <i class="fab fa-paypal text-3xl text-blue-400"></i>
+          <span class="hidden sm:inline">PayPal</span>
+        </div>
+      </div>
+
+      <!-- Live Guthaben Anzeige -->
+      <div class="flex items-center space-x-3">
+        <div class="text-right">
+          <div class="text-xs text-blue-200">Guthaben</div>
+          <div id="paypal-balance" class="text-lg md:text-xl font-extrabold text-white">1.250,00 €</div>
+        </div>
+        <div class="w-10 h-10 rounded-full bg-blue-800 text-white flex items-center justify-center font-bold border border-blue-400 shadow-inner">
+          JD
+        </div>
+      </div>
+    </div>
+
+    <!-- Touch Navigation Leiste -->
+    <div class="grid grid-cols-3 bg-blue-950 py-2 border-t border-blue-900 text-xs font-bold text-blue-200 text-center">
+      <button onclick="switchTab('dashboard')" id="nav-dashboard" class="py-2.5 transition active:bg-blue-900 text-white flex flex-col items-center gap-1">
+        <i class="fas fa-home text-base"></i> Übersicht
+      </button>
+      <button onclick="switchTab('sell')" id="nav-sell" class="py-2.5 transition active:bg-blue-900 flex flex-col items-center gap-1">
+        <i class="fas fa-tag text-base"></i> Klamotten
+      </button>
+      <button onclick="switchTab('garage')" id="nav-garage" class="py-2.5 transition active:bg-blue-900 flex flex-col items-center gap-1">
+        <i class="fas fa-car text-base"></i> Autohaus
+      </button>
+    </div>
+  </header>
+
+  <!-- Hauptinhalt -->
+  <main class="max-w-6xl mx-auto px-4 py-6 flex-grow w-full space-y-6">
+
+    <!-- TAB 1: DASHBOARD & AKTIVITÄTEN -->
+    <div id="tab-dashboard" class="space-y-6">
+      
+      <div class="bg-white rounded-2xl p-6 card-shadow flex flex-col md:flex-row justify-between items-center gap-6 border border-gray-100">
+        <div class="flex items-center space-x-4 w-full">
+          <div class="p-4 bg-blue-50 text-blue-600 rounded-2xl">
+            <i class="fas fa-wallet text-3xl"></i>
+          </div>
+          <div>
+            <h2 class="text-gray-500 font-semibold text-xs uppercase tracking-wider">Verfügbares PayPal-Guthaben</h2>
+            <div id="main-balance-display" class="text-3xl md:text-4xl font-extrabold text-gray-900 mt-1">1.250,00 €</div>
+            <p class="text-xs text-emerald-600 font-medium mt-1 flex items-center gap-1">
+              <i class="fas fa-check-circle"></i> Sofort auszahlbar
+            </p>
+          </div>
+        </div>
+        <div class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 w-full md:w-auto">
+          <button onclick="switchTab('sell')" class="paypal-btn text-white px-6 py-3.5 rounded-xl text-sm font-bold shadow-md active:scale-95 transition text-center flex items-center justify-center gap-2">
+            <i class="fas fa-plus"></i> Artikel inserieren
+          </button>
+          <button onclick="switchTab('garage')" class="bg-gray-900 hover:bg-black text-white px-6 py-3.5 rounded-xl text-sm font-bold shadow-md active:scale-95 transition text-center flex items-center justify-center gap-2">
+            <i class="fas fa-car"></i> Autohaus öffnen
+          </button>
+        </div>
+      </div>
+
+      <!-- Aktive Angebote -->
+      <div class="bg-white rounded-2xl p-6 card-shadow border border-gray-100">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-base font-bold text-gray-800 flex items-center gap-2">
+            <i class="fas fa-store text-blue-600"></i> Aktive Verkäufe
+          </h3>
+          <span id="active-count" class="bg-blue-100 text-blue-800 text-xs font-bold px-3 py-1 rounded-full">0 Inserate</span>
+        </div>
+
+        <div id="active-listings-container" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div id="no-active-msg" class="col-span-full text-center py-10 text-gray-400 border-2 border-dashed border-gray-200 rounded-2xl">
+            <i class="fas fa-box-open text-4xl mb-2 text-gray-300"></i>
+            <p class="text-sm font-medium">Du hast derzeit keine Klamotten online.</p>
+            <button onclick="switchTab('sell')" class="text-blue-600 font-bold text-xs mt-3 inline-block p-2">Jetzt Klamotten einstellen &rarr;</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Letzte Aktivitäten -->
+      <div class="bg-white rounded-2xl p-6 card-shadow border border-gray-100">
+        <h3 class="text-base font-bold text-gray-800 mb-4 flex items-center gap-2">
+          <i class="fas fa-history text-gray-500"></i> Letzte Aktivitäten
+        </h3>
+        <div id="transaction-history" class="divide-y divide-gray-100">
+          <div class="py-3.5 flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+              <div class="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold">
+                <i class="fas fa-arrow-down text-sm"></i>
+              </div>
+              <div>
+                <p class="font-bold text-sm text-gray-900">Startguthaben</p>
+                <p class="text-xs text-gray-400">PayPal Europa</p>
+              </div>
+            </div>
+            <span class="font-extrabold text-emerald-600 text-sm">+1.250,00 €</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- TAB 2: KLAMOTTEN VERKAUFEN (Mit realistischen Artikeln & Preissperre) -->
+    <div id="tab-sell" class="hidden space-y-6">
+      <div class="bg-white rounded-2xl p-6 card-shadow max-w-xl mx-auto border border-gray-100">
+        <h2 class="text-xl font-bold text-gray-900 mb-1 flex items-center gap-2">
+          <i class="fas fa-tags text-blue-600"></i> Klamotten verkaufen
+        </h2>
+        <p class="text-gray-500 text-sm mb-6">Wähle einen Artikel aus. Die Preise sind realistisch angepasst (keine Fake-Mondpreise möglich!).</p>
+
+        <form id="sell-form" onsubmit="handleItemSubmit(event)" class="space-y-4">
+          <div>
+            <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Marken-Klamotte auswählen</label>
+            <select id="item-select" onchange="updateItemPreset()" class="w-full px-4 py-3.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm bg-gray-50 font-semibold">
+              <!-- Wird per JS befüllt -->
+            </select>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Preis (€)</label>
+              <input type="number" id="item-price" required class="w-full px-4 py-3.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none text-base bg-gray-50 font-bold text-blue-900" title="Realistischer Preisbereich">
+              <span id="price-hint" class="text-[10px] text-gray-400 mt-1 block">Erlaubt: 20 € – 350 €</span>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Zustand</label>
+              <select id="item-condition" class="w-full px-4 py-3.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm bg-gray-50">
+                <option value="Neu mit Etikett">Neu mit Etikett</option>
+                <option value="Sehr gut">Sehr gut</option>
+                <option value="Gut">Gut</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Vorschau Bild -->
+          <div class="flex items-center space-x-3 bg-gray-50 p-3 rounded-xl border border-gray-200">
+            <img id="preview-img" src="" class="w-16 h-16 object-cover rounded-lg shadow-sm" alt="Vorschau">
+            <div>
+              <p class="text-xs font-bold text-gray-700">Artikel-Vorschau</p>
+              <p id="preview-name" class="text-xs text-gray-500">Wähle oben ein Teil aus</p>
+            </div>
+          </div>
+
+          <button type="submit" class="w-full paypal-btn text-white font-bold py-4 rounded-xl shadow-lg active:scale-98 transition flex items-center justify-center gap-2 text-base">
+            <i class="fas fa-paper-plane"></i> Auf Marktplatz stellen (30s – 1m Verkaufsdauer)
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- TAB 3: AUTOHAUS (Riesige Auswahl mit 15 Autos) -->
+    <div id="tab-garage" class="hidden space-y-6">
+      <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-2xl card-shadow border border-gray-100">
+        <div>
+          <h2 class="text-xl font-bold text-gray-900">Exklusives Autohaus</h2>
+          <p class="text-gray-500 text-sm">Entdecke über 15 Traumautos und kaufe sie mit deinem PayPal-Guthaben.</p>
+        </div>
+        <div class="bg-blue-50 border border-blue-100 px-5 py-3 rounded-xl text-right w-full md:w-auto">
+          <span class="text-xs text-blue-600 block font-semibold uppercase tracking-wide">Dein Budget</span>
+          <span id="garage-balance" class="text-xl font-extrabold text-blue-900">1.250,00 €</span>
+        </div>
+      </div>
+
+      <!-- Fahrzeug-Liste -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="cars-container">
+        <!-- Autos werden per JS geladen -->
+      </div>
+
+      <!-- Meine Garage -->
+      <div class="bg-white rounded-2xl p-6 card-shadow border border-gray-100 mt-8">
+        <h3 class="text-base font-bold text-gray-900 mb-4 flex items-center gap-2">
+          <i class="fas fa-warehouse text-amber-500"></i> Meine gekauften Fahrzeuge
+        </h3>
+        <div id="purchased-cars-container" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+          <p id="no-cars-msg" class="text-sm text-gray-400 col-span-full py-4 text-center">Du besitzt noch keine Autos.</p>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Audio Effekt Skript -->
+  <script>
+    function playCashSound() {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(750, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(1350, ctx.currentTime + 0.15);
+        gain.gain.setValueAtTime(0.2, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.3);
+      } catch(e) {}
+    }
+  </script>
+
+  <!-- App Hauptlogik -->
+  <script>
+    let balance = 1250.00;
+    let activeListings = [];
+    let myGarage = [];
+
+    const randomBuyers = [
+      "Maximilian S.", "Lisa M.", "Lukas B.", "Felix K.", 
+      "Sarah W.", "Tim H.", "Janina R.", "David O.",
+      "Alexander T.", "Laura P.", "Tobias M.", "Sophie N."
+    ];
+
+    // Realistische Klamotten mit Preissperre (Min/Max Preis)
+    const clothingCatalog = [
+      { name: "Nike Tech Fleece Anzug", min: 80, max: 140, default: 110, img: "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=600" },
+      { name: "Nike Air Jordan 1 Retro High", min: 120, max: 280, default: 180, img: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600" },
+      { name: "Supreme Box Logo Hoodie", min: 150, max: 350, default: 220, img: "https://images.unsplash.com/photo-1509631179647-0177331693ae?w=600" },
+      { name: "Off-White T-Shirt", min: 90, max: 200, default: 130, img: "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=600" },
+      { name: "Carhartt WIP Active Jacket", min: 100, max: 220, default: 150, img: "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=600" },
+      { name: "Palace Skateboards Crewneck", min: 80, max: 160, default: 120, img: "https://images.unsplash.com/photo-1578587018452-892bacefd3f2?w=600" },
+      { name: "Adidas Yeezy Boost 350", min: 130, max: 300, default: 190, img: "https://images.unsplash.com/photo-1584735935682-2f2b69dff9d2?w=600" },
+      { name: "Stüssy 8-Ball Hoodie", min: 90, max: 170, default: 130, img: "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=600" },
+      { name: "Balenciaga Designer Cap", min: 150, max: 320, default: 240, img: "https://images.unsplash.com/photo-1588850561407-ed78c282e89b?w=600" },
+      { name: "Trapstar London Irongate Jacket", min: 140, max: 290, default: 210, img: "https://images.unsplash.com/photo-1544441893-675973e31985?w=600" }
+    ];
+
+    // Über 15 fette Autos für das Autohaus
+    const carsData = [
+      { id: 'golf8', name: 'VW Golf 8 GTI', price: 35000, hp: '245 PS', img: 'https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?w=600' },
+      { id: 'bmwm3', name: 'BMW M3 Competition', price: 89000, hp: '510 PS', img: 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=600' },
+      { id: 'audirs6', name: 'Audi RS6 Avant', price: 135000, hp: '600 PS', img: 'https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=600' },
+      { id: 'amggts', name: 'Mercedes-AMG GT R', price: 160000, hp: '585 PS', img: 'https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?w=600' },
+      { id: 'porsche911', name: 'Porsche 911 GT3 RS', price: 230000, hp: '525 PS', img: 'https://images.unsplash.com/photo-1614162692292-7ac56d7f7f1e?w=600' },
+      { id: 'ferrari', name: 'Ferrari F8 Tributo', price: 280000, hp: '720 PS', img: 'https://images.unsplash.com/photo-1583121274602-3e2820c69888?w=600' },
+      { id: 'lamborghini', name: 'Lamborghini Aventador SVJ', price: 390000, hp: '770 PS', img: 'https://images.unsplash.com/photo-1544829099-b9a0c07fad1a?w=600' },
+      { id: 'bugatti', name: 'Bugatti Chiron Sport', price: 2500000, hp: '1500 PS', img: 'https://images.unsplash.com/photo-1563720223185-11003d516935?w=600' },
+      { id: 'mclaren720s', name: 'McLaren 720S', price: 270000, hp: '720 PS', img: 'https://images.unsplash.com/photo-1621135802920-133df287f89c?w=600' },
+      { id: 'nissangtr', name: 'Nissan GT-R Nismo', price: 195000, hp: '600 PS', img: 'https://images.unsplash.com/photo-1617814076367-b759c7d7e738?w=600' },
+      { id: 'supra', name: 'Toyota Supra MK5', price: 58000, hp: '340 PS', img: 'https://images.unsplash.com/photo-1617814076668-8df09dd45458?w=600' },
+      { id: 'mustang', name: 'Ford Mustang Shelby GT500', price: 110000, hp: '760 PS', img: 'https://images.unsplash.com/photo-1584345604476-8ec5e12e42dd?w=600' },
+      { id: 'rs7', name: 'Audi RS7 Sportback', price: 140000, hp: '600 PS', img: 'https://images.unsplash.com/photo-1617788138017-80ad40651399?w=600' },
+      { id: 'bmwm4', name: 'BMW M4 Competition', price: 85000, hp: '510 PS', img: 'https://images.unsplash.com/photo-1555215695-3004980ad54e?w=600' },
+      { id: 'koenigsegg', name: 'Koenigsegg Jesko', price: 2800000, hp: '1600 PS', img: 'https://images.unsplash.com/photo-1511919884226-fd3cad34687c?w=600' }
+    ];
+
+    document.addEventListener("DOMContentLoaded", () => {
+      updateBalanceDisplays();
+      renderCars();
+      initClothingDropdown();
+    });
+
+    function initClothingDropdown() {
+      const select = document.getElementById('item-select');
+      select.innerHTML = '';
+      clothingCatalog.forEach((item, index) => {
+        const opt = document.createElement('option');
+        opt.value = index;
+        opt.innerText = item.name;
+        select.appendChild(opt);
+      });
+      updateItemPreset();
+    }
+
+    function updateItemPreset() {
+      const index = document.getElementById('item-select').value;
+      const selected = clothingCatalog[index];
+      const priceInput = document.getElementById('item-price');
+      const hint = document.getElementById('price-hint');
+      
+      priceInput.value = selected.default;
+      priceInput.min = selected.min;
+      priceInput.max = selected.max;
+      hint.innerText = `Erlaubt für diesen Artikel: ${selected.min} € – ${selected.max} €`;
+
+      document.getElementById('preview-img').src = selected.img;
+      document.getElementById('preview-name').innerText = selected.name;
+    }
+
+    function switchTab(tab) {
+      ['dashboard', 'sell', 'garage'].forEach(t => {
+        document.getElementById(`tab-${t}`).classList.add('hidden');
+        const navBtn = document.getElementById(`nav-${t}`);
+        if(navBtn) {
+          navBtn.classList.remove('text-white', 'bg-blue-900');
+          navBtn.classList.add('text-blue-200');
+        }
+      });
+
+      document.getElementById(`tab-${tab}`).classList.remove('hidden');
+      const activeNav = document.getElementById(`nav-${tab}`);
+      if(activeNav) {
+        activeNav.classList.remove('text-blue-200');
+        activeNav.classList.add('text-white', 'bg-blue-900');
+      }
+    }
+
+    function formatMoney(amount) {
+      return amount.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+    }
+
+    function updateBalanceDisplays() {
+      const formatted = formatMoney(balance);
+      document.getElementById('paypal-balance').innerText = formatted;
+      document.getElementById('main-balance-display').innerText = formatted;
+      document.getElementById('garage-balance').innerText = formatted;
+    }
+
+    function handleItemSubmit(e) {
+      e.preventDefault();
+      
+      const index = document.getElementById('item-select').value;
+      const catalogItem = clothingCatalog[index];
+      const priceInput = document.getElementById('item-price');
+      const price = parseFloat(priceInput.value);
+      const condition = document.getElementById('item-condition').value;
+
+      // Sicherheitsprüfung: Preis darf nicht außerhalb des Rahmen sein!
+      if (price < catalogItem.min || price > catalogItem.max) {
+        showToast('Ungültiger Preis!', `Bitte wähle einen realistischen Preis zwischen ${catalogItem.min} € und ${catalogItem.max} € für "${catalogItem.name}".`, 'error');
+        return;
+      }
+
+      const id = 'item-' + Date.now();
+      const durationSeconds = Math.floor(Math.random() * 31) + 30; // 30s bis 1m
+
+      const newItem = {
+        id: id,
+        name: catalogItem.name,
+        price: price,
+        condition: condition,
+        img: catalogItem.img,
+        duration: durationSeconds,
+        remaining: durationSeconds,
+        intervalId: null
+      };
+
+      activeListings.push(newItem);
+      renderActiveListings();
+      
+      showToast('Angebot veröffentlicht!', 'Dein Inserat ist jetzt live auf dem Marktplatz.', 'success');
+      switchTab('dashboard');
+
+      startSaleProcess(newItem);
+    }
+
+    function startSaleProcess(item) {
+      item.intervalId = setInterval(() => {
+        item.remaining--;
+        
+        const timerElem = document.getElementById(`timer-${item.id}`);
+        const progressElem = document.getElementById(`progress-${item.id}`);
+        const statusText = document.getElementById(`status-${item.id}`);
+
+        if (timerElem && progressElem) {
+          timerElem.innerText = item.remaining + 's';
+          const pct = ((item.duration - item.remaining) / item.duration) * 100;
+          progressElem.style.width = `${pct}%`;
+
+          if(item.remaining < 10) {
+            statusText.innerText = "Käufer schließt Kauf ab...";
+          } else if(item.remaining < 20) {
+            statusText.innerText = "Interessent prüft Artikel...";
+          } else {
+            statusText.innerText = "Warten auf Käufer...";
+          }
+        }
+
+        if (item.remaining <= 0) {
+          clearInterval(item.intervalId);
+          completeSale(item);
+        }
+      }, 1000);
+    }
+
+    function completeSale(item) {
+      activeListings = activeListings.filter(i => i.id !== item.id);
+      renderActiveListings();
+
+      balance += item.price;
+      updateBalanceDisplays();
+      playCashSound();
+
+      const buyer = randomBuyers[Math.floor(Math.random() * randomBuyers.length)];
+
+      const historyContainer = document.getElementById('transaction-history');
+      const txRow = document.createElement('div');
+      txRow.className = 'py-3.5 flex justify-between items-center transition bg-emerald-50/40 px-2 rounded-xl';
+      txRow.innerHTML = `
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold">
+            <i class="fas fa-shopping-bag text-sm"></i>
+          </div>
+          <div>
+            <p class="font-bold text-sm text-gray-900">${escapeHtml(item.name)}</p>
+            <p class="text-xs text-gray-500">Käufer: <span class="font-semibold text-gray-700">${buyer}</span> &bull; Gerade eben</p>
+          </div>
+        </div>
+        <span class="font-extrabold text-emerald-600 text-sm">+${formatMoney(item.price)}</span>
+      `;
+      historyContainer.insertBefore(txRow, historyContainer.firstChild);
+
+      showToast(
+        `Artikel verkauft! +${formatMoney(item.price)}`,
+        `"<b>${escapeHtml(item.name)}</b>" wurde von <b>${buyer}</b> gekauft!`,
+        'sale'
+      );
+    }
+
+    function renderActiveListings() {
+      const container = document.getElementById('active-listings-container');
+      const countTag = document.getElementById('active-count');
+      countTag.innerText = `${activeListings.length} Inserate`;
+
+      if (activeListings.length === 0) {
+        container.innerHTML = `
+          <div id="no-active-msg" class="col-span-full text-center py-10 text-gray-400 border-2 border-dashed border-gray-200 rounded-2xl">
+            <i class="fas fa-box-open text-4xl mb-2 text-gray-300"></i>
+            <p class="text-sm font-medium">Du hast derzeit keine Klamotten online.</p>
+            <button onclick="switchTab('sell')" class="text-blue-600 font-bold text-xs mt-3 inline-block p-2">Jetzt Klamotten einstellen &rarr;</button>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = '';
+      activeListings.forEach(item => {
+        const card = document.createElement('div');
+        card.className = "border border-gray-200 rounded-2xl p-4 bg-gray-50/50 flex flex-col justify-between";
+        card.innerHTML = `
+          <div class="flex space-x-3">
+            <img src="${item.img}" class="w-16 h-16 object-cover rounded-xl border border-gray-200 shadow-sm" alt="${escapeHtml(item.name)}">
+            <div class="flex-1">
+              <div class="flex justify-between items-start">
+                <h4 class="font-bold text-sm text-gray-900">${escapeHtml(item.name)}</h4>
+                <span class="font-extrabold text-blue-900 text-sm">${formatMoney(item.price)}</span>
+              </div>
+              <p class="text-xs text-gray-500 mt-0.5">Zustand: ${item.condition}</p>
+              <div class="flex items-center space-x-1.5 mt-1.5 text-xs text-blue-600 font-medium">
+                <i class="fas fa-spinner fa-spin text-xs"></i>
+                <span id="status-${item.id}" class="italic">Warten auf Käufer...</span>
+              </div>
+            </div>
+          </div>
+          <div class="mt-4 pt-3 border-t border-gray-200/60">
+            <div class="flex justify-between text-xs text-gray-500 mb-1.5">
+              <span>Verkauf in ca.:</span>
+              <span id="timer-${item.id}" class="font-mono font-bold text-gray-800">${item.remaining}s</span>
+            </div>
+            <div class="w-full bg-gray-200 h-2 rounded-full overflow-hidden">
+              <div id="progress-${item.id}" class="bg-blue-600 h-full transition-all duration-1000" style="width: ${((item.duration - item.remaining) / item.duration) * 100}%"></div>
+            </div>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function renderCars() {
+      const container = document.getElementById('cars-container');
+      container.innerHTML = '';
+
+      carsData.forEach(car => {
+        const card = document.createElement('div');
+        card.className = "bg-white rounded-2xl overflow-hidden card-shadow border border-gray-100 flex flex-col justify-between";
+        card.innerHTML = `
+          <div>
+            <div class="h-48 overflow-hidden relative">
+              <img src="${car.img}" alt="${car.name}" class="w-full h-full object-cover">
+              <span class="absolute top-3 right-3 bg-black/70 backdrop-blur-md text-white text-xs font-bold px-3 py-1 rounded-full shadow">${car.hp}</span>
+            </div>
+            <div class="p-5">
+              <h3 class="text-base font-bold text-gray-900">${car.name}</h3>
+              <p class="text-xl font-extrabold text-blue-900 mt-1">${formatMoney(car.price)}</p>
+            </div>
+          </div>
+          <div class="p-5 pt-0">
+            <button onclick="buyCar('${car.id}')" class="w-full bg-gray-900 hover:bg-black active:scale-95 text-white font-bold py-3.5 rounded-xl text-sm transition shadow flex justify-center items-center gap-2">
+              <i class="fas fa-shopping-cart text-xs"></i> Mit PayPal kaufen
+            </button>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function buyCar(carId) {
+      const car = carsData.find(c => c.id === carId);
+      if (!car) return;
+
+      if (balance < car.price) {
+        showToast('Guthaben nicht ausreichend!', `Du benötigst ${formatMoney(car.price)}. Verkaufe erst mehr Klamotten!`, 'error');
+        return;
+      }
+
+      balance -= car.price;
+      updateBalanceDisplays();
+
+      myGarage.push(car);
+      renderGarage();
+
+      const historyContainer = document.getElementById('transaction-history');
+      const txRow = document.createElement('div');
+      txRow.className = 'py-3.5 flex justify-between items-center px-2';
+      txRow.innerHTML = `
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-full bg-gray-100 text-gray-700 flex items-center justify-center font-bold">
+            <i class="fas fa-car text-sm"></i>
+          </div>
+          <div>
+            <p class="font-bold text-sm text-gray-900">Fahrzeugkauf: ${car.name}</p>
+            <p class="text-xs text-gray-400">Autohaus Checkout</p>
+          </div>
+        </div>
+        <span class="font-extrabold text-gray-900 text-sm">-${formatMoney(car.price)}</span>
+      `;
+      historyContainer.insertBefore(txRow, historyContainer.firstChild);
+
+      showToast('Autokauf erfolgreich!', `Du hast dir den ${car.name} gekauft!`, 'success');
+    }
+
+    function renderGarage() {
+      const container = document.getElementById('purchased-cars-container');
+      const noCarsMsg = document.getElementById('no-cars-msg');
+
+      if (myGarage.length === 0) {
+        if (noCarsMsg) noCarsMsg.style.display = 'block';
+        return;
+      }
+
+      if (noCarsMsg) noCarsMsg.style.display = 'none';
+      container.innerHTML = '';
+
+      myGarage.forEach(car => {
+        const item = document.createElement('div');
+        item.className = "border border-gray-200 rounded-xl overflow-hidden bg-gray-50 flex items-center space-x-3 p-3 shadow-sm";
+        item.innerHTML = `
+          <img src="${car.img}" class="w-16 h-12 object-cover rounded-lg shadow-sm" alt="${car.name}">
+          <div>
+            <h4 class="font-bold text-xs text-gray-900">${car.name}</h4>
+            <p class="text-xs text-gray-500">${car.hp} &bull; In Garage</p>
+          </div>
+        `;
+        container.appendChild(item);
+      });
+    }
+
+    function showToast(title, message, type = 'info') {
+      const toast = document.createElement('div');
+      toast.className = `pointer-events-auto p-4 rounded-2xl shadow-2xl border flex items-start space-x-3 transition transform duration-300 max-w-sm ${
+        type === 'sale' ? 'bg-emerald-900 text-white border-emerald-700' :
+        type === 'error' ? 'bg-red-600 text-white border-red-700' :
+        'bg-gray-900 text-white border-gray-800'
+      }`;
+
+      const icon = type === 'sale' ? 'fa-circle-check text-emerald-400 text-xl' :
+                   type === 'error' ? 'fa-triangle-exclamation text-red-300 text-xl' : 'fa-bell text-blue-400 text-xl';
+
+      toast.innerHTML = `
+        <i class="fas ${icon} mt-0.5"></i>
+        <div class="flex-1">
+          <h4 class="font-bold text-sm">${title}</h4>
+          <p class="text-xs opacity-90 mt-0.5">${message}</p>
+        </div>
+      `;
+
+      const container = document.getElementById('toast-container');
+      container.appendChild(toast);
+
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(10px)';
+        setTimeout(() => toast.remove(), 300);
+      }, 4500);
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
+  </script>
+</body>
+</html>
